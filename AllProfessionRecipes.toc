@@ -6,7 +6,7 @@
 ## Author: qqhrqqhr2
 ## Version: @project-version@
 ## SavedVariables: AllProfessionRecipesDB
-## IconTexture: Interface\Icons\Trade_Engineering
+## IconTexture: Interface\AddOns\AllProfessionRecipes\Icon
 ## X-Credits: Recipe data from wowf.io and seemeta.com
 
 Data.lua
