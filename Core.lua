@@ -983,12 +983,33 @@ local function MirrorPoint(pt)
 end
 
 -- 테두리를 뒤집으면 아이콘·무늬 위치도 반대로 옮겨야 가운데 맞음
+-- 아이콘 위치: 템플릿이 누를 때/선택될 때 아이콘을 다시 배치하므로 매번 원래 위치(또는 대칭 위치)로 고정
+local function PlaceTabIcon(tab, want)
+	local icon = tab.Icon
+	if not icon or not icon.GetNumPoints then return end
+	if not icon.__aprPts then
+		icon.__aprPts = {}
+		for i = 1, (icon:GetNumPoints() or 0) do icon.__aprPts[i] = { icon:GetPoint(i) } end
+		if #icon.__aprPts == 0 then icon.__aprPts[1] = { "CENTER", tab, "CENTER", 0, 0 } end
+	end
+	icon:ClearAllPoints()
+	for _, pt in ipairs(icon.__aprPts) do
+		local p, rel, rp, x, y = pt[1], pt[2], pt[3], pt[4] or 0, pt[5] or 0
+		if want then
+			icon:SetPoint(MirrorPoint(p), rel, MirrorPoint(rp), -x, y)
+		else
+			icon:SetPoint(p, rel, rp, x, y)
+		end
+	end
+end
+
 local function MirrorTabAnchors(tab, want)
+	PlaceTabIcon(tab, want)
 	if tab.__aprMirrored == want then return end
 	local regions = { tab:GetRegions() }
 	if tab.GetHighlightTexture then regions[#regions + 1] = tab:GetHighlightTexture() end
 	for _, r in ipairs(regions) do
-		if r and r.GetNumPoints then
+		if r and r ~= tab.Icon and r.GetNumPoints then
 			if not r.__aprPts then
 				r.__aprPts = {}
 				for i = 1, (r:GetNumPoints() or 0) do r.__aprPts[i] = { r:GetPoint(i) } end
