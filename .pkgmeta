@@ -4,3 +4,4 @@ ignore:
   - tools
   - raw
   - README.md
+  - media
