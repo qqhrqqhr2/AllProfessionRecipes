@@ -41,3 +41,7 @@ python3 tools/build_data.py raw Data.lua
 ## 후원 / Support
 
 [buymeacoffee.com/qqhrqqhr2](https://buymeacoffee.com/qqhrqqhr2)
+
+## License
+
+GPLv2. See [LICENSE](LICENSE).
