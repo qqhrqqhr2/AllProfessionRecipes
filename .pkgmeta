@@ -1,0 +1,6 @@
+package-as: AllProfessionRecipes
+
+ignore:
+  - tools
+  - raw
+  - README.md

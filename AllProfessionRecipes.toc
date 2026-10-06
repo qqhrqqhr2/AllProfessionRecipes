@@ -1,0 +1,13 @@
+## Interface: 16001
+## Title: All Profession Recipes
+## Title-koKR: 모든 전문 기술 제조법
+## Notes: Adds tabs for professions you have not learned to the profession window and lists their recipes.
+## Notes-koKR: 전문 기술 창 옆에 배우지 않은 전문 기술 탭을 추가하고 제작 목록을 보여줍니다.
+## Author: qqhrqqhr2
+## Version: @project-version@
+## SavedVariables: AllProfessionRecipesDB
+## IconTexture: Interface\Icons\Trade_Engineering
+## X-Credits: Recipe data from wowf.io and seemeta.com
+
+Data.lua
+Core.lua
