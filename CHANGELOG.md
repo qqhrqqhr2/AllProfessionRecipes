@@ -12,4 +12,4 @@
 
 ## v1.2.3
 
-- First release
+- First release on CurseForge
