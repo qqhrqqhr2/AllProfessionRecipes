@@ -109,3 +109,12 @@ local moved = false
 ProfessionsFrame.StartMoving = function() moved = true end
 P._scripts.OnDragStart(P); P._scripts.OnDragStop(P)
 print("drag moves professions frame", P.attached, moved)
+-- 배우는 곳 / 채집 기술
+ns.OpenProfession(171)
+local P = AllProfessionRecipesFrame
+P.search:SetText("하급 정신력"); P.search._scripts.OnTextChanged(P.search)
+P.rows[2]._scripts.OnClick(P.rows[2])
+print("where", P.detail.name._text, P.detail.where._text)
+P.search:SetText(""); P.search._scripts.OnTextChanged(P.search)
+ns.OpenProfession(182, true, 120)
+print("herb missing", P.rows[1].text._text, P.rows[2].text._text, P.rows[2].right._text)

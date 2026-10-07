@@ -110,6 +110,9 @@ local PROFESSIONS = {
 	{ id = 186, icon = "Interface\\Icons\\Trade_Mining",           ko = "채광",     en = "Mining" },
 	{ id = 185, icon = "Interface\\Icons\\INV_Misc_Food_15",       ko = "요리",     en = "Cooking" },
 	{ id = 129, icon = "Interface\\Icons\\Spell_Holy_SealOfSacrifice", ko = "응급치료", en = "First Aid" },
+	{ id = 182, icon = "Interface\\Icons\\Trade_Herbalism",        ko = "약초 채집", en = "Herbalism" },
+	{ id = 393, icon = "Interface\\Icons\\INV_Misc_Pelt_Wolf_01",  ko = "무두질",   en = "Skinning" },
+	{ id = 356, icon = "Interface\\Icons\\Trade_Fishing",          ko = "낚시",     en = "Fishing" },
 }
 local PROF_BY_ID = {}
 for _, p in ipairs(PROFESSIONS) do PROF_BY_ID[p.id] = p end
@@ -119,13 +122,14 @@ local function ProfName(p)
 end
 
 -- 레시피 배열 인덱스
-local R_SPELL, R_ITEM, R_CAT, R_ORANGE, R_YELLOW, R_GREEN, R_GREY, R_FLAGS, R_QTY, R_ICON, R_NAME_KO, R_NAME_EN, R_REAG, R_DESC_KO, R_DESC_EN =
-	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
+local R_SPELL, R_ITEM, R_CAT, R_ORANGE, R_YELLOW, R_GREEN, R_GREY, R_FLAGS, R_QTY, R_ICON, R_NAME_KO, R_NAME_EN, R_REAG, R_DESC_KO, R_DESC_EN, R_SRC_KO, R_SRC_EN =
+	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17
 local F_NEW, F_TRAINER = 1, 2
 
 local function HasFlag(r, f) return bit.band(r[R_FLAGS], f) ~= 0 end
 local function RecipeName(r) return IS_KO and r[R_NAME_KO] or r[R_NAME_EN] end
 local function RecipeDesc(r) return IS_KO and r[R_DESC_KO] or r[R_DESC_EN] end
+local function RecipeSrc(r) return (IS_KO and r[R_SRC_KO] or r[R_SRC_EN]) or "" end
 
 ------------------------------------------------------------------------
 -- 저장 변수
@@ -221,6 +225,8 @@ local function GetLearnedSkillLines()
 		[165] = { 2108, 3104, 3811, 10662 }, [197] = { 3908, 3909, 3910, 12180 },
 		[186] = { 2575, 2576, 3564, 10248, 2656 }, [185] = { 2550, 3102, 3413, 18260 },
 		[129] = { 3273, 3274, 7924, 10846 },
+		[182] = { 2366, 2368, 3570, 11993 }, [393] = { 8613, 8617, 8618, 10768 },
+		[356] = { 7620, 7731, 7732, 18248 },
 	}
 	local isKnown = IsPlayerSpell or IsSpellKnown
 	if isKnown then
@@ -505,6 +511,12 @@ function UpdateDetail()
 	d.desc:SetText(desc)
 
 	d.skill:SetText(L.skill .. "  " .. SkillText(r))
+
+	-- 배우는 곳 (판매 NPC 좌표, 드랍 지역, 퀘스트)
+	local where = RecipeSrc(r)
+	d.where:SetText(where)
+	local wh = (where ~= "") and (d.where:GetStringHeight() or 0) or 0
+	d.desc:SetHeight(math.max(50, (d.descBase or 170) - wh))
 	if r[R_QTY] and r[R_QTY] > 1 then
 		d.qty:SetText(L.makes:format(r[R_QTY]))
 	else
@@ -763,7 +775,13 @@ local function CreatePanel()
 	d.qty:SetPoint("LEFT", d.skill, "RIGHT", 24, 0)
 
 	d.desc = d:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-	d.desc:SetPoint("TOPLEFT", d.skill, "BOTTOMLEFT", 0, -12)
+	d.where = d:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	d.where:SetPoint("TOPLEFT", d.skill, "BOTTOMLEFT", 0, -8)
+	d.where:SetPoint("RIGHT", d, "RIGHT", -16, 0)
+	d.where:SetJustifyH("LEFT")
+	d.where:SetSpacing(2)
+
+	d.desc:SetPoint("TOPLEFT", d.where, "BOTTOMLEFT", 0, -10)
 	d.desc:SetPoint("RIGHT", d, "RIGHT", -16, 0)
 	d.desc:SetJustifyH("LEFT")
 	d.desc:SetJustifyV("TOP")
@@ -813,7 +831,8 @@ local function CreatePanel()
 			b:SetSize(bw, twoCols and 36 or 30)
 			b:SetPoint("TOPLEFT", rl, "BOTTOMLEFT", col * (bw + 10), -6 - rowi * (twoCols and 40 or 32))
 		end
-		d.desc:SetHeight(twoCols and 170 or 120)
+		d.descBase = twoCols and 170 or 120
+		if f:IsShown() and selectedRecipe then UpdateDetail() end
 	end
 	f:HookScript("OnSizeChanged", Relayout)
 	d:HookScript("OnSizeChanged", Relayout)

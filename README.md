@@ -6,12 +6,14 @@ World of Warcraft: Forever addon that adds tabs for the professions you have **n
 
 ## 기능 / Features
 
-- 배우지 않은 전문 기술 탭: 연금술, 대장기술, 마법부여, 기계공학, 가죽세공, 재봉술, 채광, 요리, 응급치료
+- 배우지 않은 전문 기술 탭: 연금술, 대장기술, 마법부여, 기계공학, 가죽세공, 재봉술, 채광, 요리, 응급치료, 약초 채집·무두질·낚시(야영 제조법)
+- 배우는 곳: 교관, 판매 NPC와 지역·좌표, 드랍 지역, 퀘스트 이름
 - 분류별 목록(접기/펼치기), 검색, 재료(보유/필요), 숙련 구간(주황·노랑·초록·회색), 배우는 방법
 - 포에버 신규 제조법 표시(`*`), "포에버 신규만", "숙련 225 이하만" 필터
 - **안 배운 제조법** 탭(두루마리): 지금 열린 배운 전문 기술에서 아직 배우지 않은 제조법만 보기
 - 설정 탭(톱니바퀴): 언어(자동/한국어/English), 탭 위치(왼쪽/아래/오른쪽), 탭 아이콘 크기, 후원
-- Unlearned profession tabs, category list with search, reagents, skill-up colors, how to learn
+- Unlearned profession tabs (including Herbalism, Skinning and Fishing camp recipes), category list with search, reagents, skill-up colors
+- Where to learn: trainer, vendor with zone and coordinates, drop zone or quest
 - "Missing recipes" tab for professions you already have
 - Settings: language, tab position, tab icon size
 
