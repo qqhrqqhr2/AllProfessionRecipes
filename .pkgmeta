@@ -4,4 +4,9 @@ ignore:
   - tools
   - raw
   - README.md
+  - CHANGELOG.md
   - media
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
