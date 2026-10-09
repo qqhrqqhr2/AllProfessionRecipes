@@ -1,3 +1,13 @@
+## v1.3.1
+
+- Dungeon drop locations for six leather helm patterns (Trapper's, Brawler's, Wisdom's, Totemic, Defender's, Stormrider's)
+- Recipe data refreshed for the current Forever build
+
+---
+
+- 가죽세공 가죽 투구 도안 6종(덫사냥꾼, 싸움꾼, 지혜, 토템술사, 파수병, 폭풍기수)의 드랍 던전 표시
+- 최신 포에버 제조법 데이터로 갱신
+
 ## v1.3.0
 
 - Herbalism, Skinning and Fishing tabs with their camp recipes

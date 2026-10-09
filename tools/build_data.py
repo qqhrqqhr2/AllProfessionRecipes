@@ -6,11 +6,16 @@ CATS=json.load(open(R+'wowf/cats.json'))
 profs=[("alchemy",171),("blacksmithing",164),("enchanting",333),("engineering",202),("leatherworking",165),("tailoring",197),("mining",186),("cooking",185),("first-aid",129),("herbalism",182),("skinning",393),("fishing",356)]
 CAMP={"ko":"야영","en":"Camping"}
 
-def src_lines(x):
-    """배우는 곳 문장 목록. 판매 NPC는 좌표를 붙인다."""
+DUNGEON_DROP={"ko":"던전 드랍: ","en":"Dungeon drop: "}
+
+def src_lines(x, lang="ko"):
+    """배우는 곳 문장 목록. 판매 NPC는 좌표를 붙이고, 드랍 던전(dr)도 한 줄로 넣는다."""
     s=x.get('src')
-    if not s: return []
-    lines=list(s) if isinstance(s,list) else [s]
+    lines=(list(s) if isinstance(s,list) else [s]) if s else []
+    dr=[d.get('n') for d in (x.get('dr') or []) if isinstance(d,dict) and d.get('n')]
+    if dr:
+        lines.append(DUNGEON_DROP[lang]+', '.join(dr))
+    if not lines: return []
     # w는 [NPC, ...] 또는 [[NPC, ...], ...] 두 가지 모양
     npcs=[]
     for g in (x.get('w') or []):
@@ -61,7 +66,7 @@ for slug,skill in profs:
             if len(nums)>=3: y,g,gr=nums[-3],nums[-2],nums[-1]
         flags=(1 if x.get('new') else 0)+(2 if trainer else 0)
         reag='{'+','.join('{%d,%d}'%(a,b) for a,b in x['r'])+'}'
-        sk='\n'.join(src_lines(x)); se='\n'.join(src_lines(e)) if e else sk
+        sk='\n'.join(src_lines(x,'ko')); se='\n'.join(src_lines(e,'en')) if e else sk
         rows.append('{%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,%s,%s,%s,%s,%s,%s,%s}'%(
             x['s'],x.get('i',0),x.get('c',0),org,y,g,gr,flags,x.get('q',1),
             lua_str(x.get('icon','')),lua_str(x['n']),lua_str(e.get('n',x['n'])),reag,
