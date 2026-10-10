@@ -64,6 +64,9 @@ for slug,skill in profs:
             if m['trainer']: trainer=True
             else: trainer=False
             if len(nums)>=3: y,g,gr=nums[-3],nums[-2],nums[-1]
+        # Explicit wowf.io trainer sources take priority over older skill-range data.
+        if src_lines(x, 'ko') == ['교관'] or src_lines(e, 'en') == ['Trainer']:
+            trainer = True
         flags=(1 if x.get('new') else 0)+(2 if trainer else 0)
         reag='{'+','.join('{%d,%d}'%(a,b) for a,b in x['r'])+'}'
         sk='\n'.join(src_lines(x,'ko')); se='\n'.join(src_lines(e,'en')) if e else sk

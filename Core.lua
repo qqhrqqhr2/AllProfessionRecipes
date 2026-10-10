@@ -371,10 +371,16 @@ local function RecipeMatches(r, query)
 	if DB.cap and r[R_ORANGE] > 225 then return false end
 	if learnedMode and DB.hideLearned and IsLearned(r) then return false end
 	if query and query ~= "" then
-		local q = query:lower()
-		if RecipeName(r):lower():find(q, 1, true) then return true end
+		local q = query:lower():gsub("^%s+", ""):gsub("%s+$", "")
+		if q == "" then return true end
+		for _, index in ipairs({ R_NAME_KO, R_NAME_EN, R_SRC_KO, R_SRC_EN }) do
+			if (r[index] or ""):lower():find(q, 1, true) then return true end
+		end
+		if tostring(r[R_SPELL]) == q or tostring(r[R_ITEM]) == q then return true end
 		for _, rg in ipairs(r[R_REAG]) do
-			if ItemName(rg[1]):lower():find(q, 1, true) then return true end
+			if tostring(rg[1]) == q or ItemName(rg[1]):lower():find(q, 1, true) then return true end
+			local names = ItemNames[rg[1]]
+			if names and ((names[1] or ""):lower():find(q, 1, true) or (names[2] or ""):lower():find(q, 1, true)) then return true end
 		end
 		return false
 	end
@@ -385,7 +391,7 @@ local function BuildList()
 	wipe(listEntries)
 	local data = currentProf and Data[currentProf]
 	if not data then return end
-	local query = Panel.search:GetText()
+	local query = Panel.search:GetText():gsub("^%s+", ""):gsub("%s+$", "")
 	local byCat = {}
 	for _, r in ipairs(data.recipes) do
 		if RecipeMatches(r, query) then
@@ -844,13 +850,14 @@ local function CreatePanel()
 	-- 아이템 정보가 늦게 도착하면 다시 그림
 	f:RegisterEvent("GET_ITEM_INFO_RECEIVED")
 	f:RegisterEvent("BAG_UPDATE_DELAYED")
-	f:SetScript("OnEvent", function(self)
+	f:SetScript("OnEvent", function(self, event, itemID, success)
+		if event == "GET_ITEM_INFO_RECEIVED" and not success then return end
 		if not self:IsShown() then return end
 		if self.pendingRefresh then return end
 		self.pendingRefresh = true
 		C_Timer.After(0.2, function()
 			self.pendingRefresh = nil
-			if self:IsShown() then UpdateList(); UpdateDetail() end
+			if self:IsShown() then Refresh() end
 		end)
 	end)
 
@@ -1215,6 +1222,7 @@ ev:RegisterEvent("PLAYER_LOGIN")
 ev:RegisterEvent("TRADE_SKILL_SHOW")
 ev:RegisterEvent("SKILL_LINES_CHANGED")
 ev:RegisterEvent("TRADE_SKILL_DATA_SOURCE_CHANGED")
+pcall(ev.RegisterEvent, ev, "TRADE_SKILL_LIST_UPDATE")
 pcall(ev.RegisterEvent, ev, "GLOBAL_MOUSE_DOWN")
 ev:SetScript("OnEvent", function(_, event, arg1)
 	if event == "ADDON_LOADED" then
@@ -1241,6 +1249,15 @@ ev:SetScript("OnEvent", function(_, event, arg1)
 			end
 			for _, t in ipairs(others) do
 				if t:IsShown() and t:IsMouseOver() then Panel:Hide() break end
+			end
+		end
+	elseif event == "TRADE_SKILL_LIST_UPDATE" then
+		if Panel and Panel:IsShown() and learnedMode then
+			local id, rank = CurrentTradeSkillLine()
+			if id == currentProf then
+				RefreshLearned()
+				curSkill = rank or curSkill
+				Refresh()
 			end
 		end
 	elseif event == "SKILL_LINES_CHANGED" then
@@ -1453,6 +1470,16 @@ SlashCmdList.ALLPROFESSIONRECIPES = function(msg)
 	if msg == "reset" then
 		AllProfessionRecipesDB = nil
 		InitDB()
+		LayoutTabs()
+		ns.RefreshTexts()
+		if ns.settingsFrame then ns.settingsFrame:UpdateTexts() end
+		if Panel then
+			Panel.checks[1]:SetChecked(DB.onlyNew)
+			Panel.checks[2]:SetChecked(DB.cap)
+			Panel.cbHide:SetChecked(DB.hideLearned)
+			scrollOffset = 0
+			Refresh()
+		end
 		print("|cff66ccffAll Profession Recipes|r: " .. L.resetDone)
 		return
 	elseif msg == "side" or msg == "bottom" or msg == "left" then

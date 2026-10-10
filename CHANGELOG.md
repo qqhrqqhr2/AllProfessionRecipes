@@ -1,3 +1,19 @@
+## v1.3.2
+
+- Search Korean and English recipe/reagent names, learning locations and spell/item IDs; ignore surrounding whitespace
+- Refresh search results when item information finishes loading
+- Refresh missing recipes and skill levels when the profession recipe list changes
+- Apply reset settings immediately to tabs, language, filters and recipe lists
+- Correct trainer labels for 22 recipes and preserve the correction when rebuilding recipe data
+
+---
+
+- 한·영 제조법·재료 이름, 습득 경로, 주문·아이템 ID 검색 지원 및 검색어 앞뒤 공백 처리
+- 아이템 정보 로딩 완료 시 검색 결과 갱신
+- 전문 기술 제조법 목록 변경 시 미습득 제조법과 숙련도 갱신
+- 설정 초기화 시 탭 위치·언어·필터·제조법 목록 즉시 반영
+- 교관 제조법 22개의 표시 오류 수정 및 데이터 재생성 시 수정 유지
+
 ## v1.3.1
 
 - Dungeon drop locations for six leather helm patterns (Trapper's, Brawler's, Wisdom's, Totemic, Defender's, Stormrider's)
