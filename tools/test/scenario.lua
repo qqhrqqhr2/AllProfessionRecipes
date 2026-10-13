@@ -88,7 +88,7 @@ P.cbHide._checked = false; P.cbHide._scripts.OnClick(P.cbHide)
 local cnt=0 for i=1,26 do local t=P.rows[i].text._text if t and t:find("배움") then cnt=cnt+1 end end
 print("learned visible rows", cnt)
 for _, f in ipairs(allFrames) do if rawget(f,"_custom") and f.skillLine == 202 then f._custom(f, "LeftButton", true) end end
-print("back to engineering", P.cbHide:IsShown())
+print("back to engineering", P.cbHide:IsShown() and P.filterMenu:IsShown())
 -- 설정 탭
 for _, f in ipairs(allFrames) do if rawget(f,"_custom") and f.skillLine == -1 then f._custom(f, "LeftButton", true) end end
 local S = AllProfessionRecipesSettings

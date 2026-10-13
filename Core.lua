@@ -52,6 +52,15 @@ local L_KO = {
 	posLeft = "탭을 창 왼쪽에 붙였습니다.",
 	posBottom = "탭을 창 아래에 붙였습니다.",
 	resetDone = "설정을 초기화했습니다.",
+	filter = "필터",
+	canLearnOnly = "지금 배울 수 있는 것만",
+	searchAll = "모든 전문 기술에서 검색",
+	results = "%d / %d개",
+	reagentTooltip = "아이템 툴팁에 쓰이는 제조법 표시",
+	usedIn = "제조법 재료",
+	usedInLine = "%s: %d개",
+	shiftForList = "Shift: 제조법 목록 보기",
+	andMore = "  외 %d개",
 }
 local L_EN = {
 	settings = "Settings",
@@ -95,6 +104,15 @@ local L_EN = {
 	posLeft = "Tabs moved to the left of the window.",
 	posBottom = "Tabs moved below the window.",
 	resetDone = "Settings reset.",
+	filter = "Filter",
+	canLearnOnly = "Learnable now only",
+	searchAll = "Search all professions",
+	results = "%d / %d",
+	reagentTooltip = "Show recipes that use an item in its tooltip",
+	usedIn = "Reagent for",
+	usedInLine = "%s: %d",
+	shiftForList = "Shift: list recipes",
+	andMore = "  and %d more",
 }
 local L = IS_KO and L_KO or L_EN
 local DONATE_URL = "https://buymeacoffee.com/qqhrqqhr2"
@@ -127,6 +145,23 @@ local R_SPELL, R_ITEM, R_CAT, R_ORANGE, R_YELLOW, R_GREEN, R_GREY, R_FLAGS, R_QT
 local F_NEW, F_TRAINER = 1, 2
 
 local function HasFlag(r, f) return bit.band(r[R_FLAGS], f) ~= 0 end
+
+-- 레시피가 속한 전문 기술, 재료로 쓰이는 레시피 (처음 필요할 때 한 번 만듦)
+local RecipeProf, ReagentIndex
+local function BuildIndexes()
+	if RecipeProf then return end
+	RecipeProf, ReagentIndex = {}, {}
+	for skill, data in pairs(Data) do
+		for _, r in ipairs(data.recipes) do
+			RecipeProf[r] = skill
+			for _, rg in ipairs(r[13]) do
+				local t = ReagentIndex[rg[1]]
+				if not t then t = {}; ReagentIndex[rg[1]] = t end
+				t[#t + 1] = r
+			end
+		end
+	end
+end
 local function RecipeName(r) return IS_KO and r[R_NAME_KO] or r[R_NAME_EN] end
 local function RecipeDesc(r) return IS_KO and r[R_DESC_KO] or r[R_DESC_EN] end
 local function RecipeSrc(r) return (IS_KO and r[R_SRC_KO] or r[R_SRC_EN]) or "" end
@@ -134,7 +169,7 @@ local function RecipeSrc(r) return (IS_KO and r[R_SRC_KO] or r[R_SRC_EN]) or "" 
 ------------------------------------------------------------------------
 -- 저장 변수
 ------------------------------------------------------------------------
-local DEFAULTS = { collapsed = {}, onlyNew = false, cap = false, standalonePos = nil, tabPos = "left", hideLearned = true, lang = "auto" }
+local DEFAULTS = { collapsed = {}, onlyNew = false, cap = false, standalonePos = nil, tabPos = "left", hideLearned = true, lang = "auto", canLearnOnly = false, searchAll = false, reagentTooltip = true }
 local DB
 
 local function ApplyLanguage()
@@ -253,7 +288,7 @@ end
 -- 메인 창
 ------------------------------------------------------------------------
 local Panel
-local ROW_H, NUM_ROWS = 18, 26
+local ROW_H, NUM_ROWS = 18, 40 -- NUM_ROWS는 최대 개수, 실제로는 창 높이에 맞춰 보이는 만큼만
 local currentProf
 local selectedRecipe
 local listEntries = {}
@@ -370,6 +405,7 @@ local function RecipeMatches(r, query)
 	if DB.onlyNew and not HasFlag(r, F_NEW) then return false end
 	if DB.cap and r[R_ORANGE] > 225 then return false end
 	if learnedMode and DB.hideLearned and IsLearned(r) then return false end
+	if learnedMode and DB.canLearnOnly and (IsLearned(r) or r[R_ORANGE] > curSkill) then return false end
 	if query and query ~= "" then
 		local q = query:lower():gsub("^%s+", ""):gsub("%s+$", "")
 		if q == "" then return true end
@@ -387,11 +423,44 @@ local function RecipeMatches(r, query)
 	return true
 end
 
+local function SortRecipes(list)
+	table.sort(list, function(a, b)
+		if a[R_ORANGE] ~= b[R_ORANGE] then return a[R_ORANGE] > b[R_ORANGE] end
+		return RecipeName(a) < RecipeName(b)
+	end)
+end
+
 local function BuildList()
 	wipe(listEntries)
+	Panel.matchCount, Panel.totalCount = 0, 0
 	local data = currentProf and Data[currentProf]
 	if not data then return end
 	local query = Panel.search:GetText():gsub("^%s+", ""):gsub("%s+$", "")
+	Panel.totalCount = #data.recipes
+
+	-- 모든 전문 기술에서 검색: 전문 기술별로 묶어서 보여줌
+	if DB.searchAll and query ~= "" and not learnedMode then
+		local total = 0
+		for _, p in ipairs(PROFESSIONS) do
+			local pd = Data[p.id]
+			if pd then
+				total = total + #pd.recipes
+				local list = {}
+				for _, r in ipairs(pd.recipes) do
+					if RecipeMatches(r, query) then list[#list + 1] = r end
+				end
+				if #list > 0 then
+					SortRecipes(list)
+					listEntries[#listEntries + 1] = { header = true, cat = "p" .. p.id, name = ProfName(p), n = #list, icon = p.icon }
+					for _, r in ipairs(list) do listEntries[#listEntries + 1] = { recipe = r } end
+					Panel.matchCount = Panel.matchCount + #list
+				end
+			end
+		end
+		Panel.totalCount = total
+		return
+	end
+
 	local byCat = {}
 	for _, r in ipairs(data.recipes) do
 		if RecipeMatches(r, query) then
@@ -408,10 +477,8 @@ local function BuildList()
 	for _, c in ipairs(order) do
 		local list = byCat[c[1]]
 		if list then
-			table.sort(list, function(a, b)
-				if a[R_ORANGE] ~= b[R_ORANGE] then return a[R_ORANGE] > b[R_ORANGE] end
-				return RecipeName(a) < RecipeName(b)
-			end)
+			SortRecipes(list)
+			Panel.matchCount = Panel.matchCount + #list
 			local isCollapsed = collapsed[c[1]] and not searching
 			listEntries[#listEntries + 1] = { header = true, cat = c[1], name = c[2], n = #list, collapsed = isCollapsed }
 			if not isCollapsed then
@@ -424,7 +491,8 @@ end
 local UpdateDetail
 
 local function UpdateList()
-	local maxOffset = math.max(0, #listEntries - NUM_ROWS)
+	local visible = Panel.visibleRows or 26
+	local maxOffset = math.max(0, #listEntries - visible)
 	if scrollOffset > maxOffset then scrollOffset = maxOffset end
 	if scrollOffset < 0 then scrollOffset = 0 end
 	Panel.slider:SetMinMaxValues(0, maxOffset)
@@ -432,22 +500,31 @@ local function UpdateList()
 	Panel.slider:SetShown(maxOffset > 0)
 	for i = 1, NUM_ROWS do
 		local row = Panel.rows[i]
-		local e = listEntries[i + scrollOffset]
+		local e = (i <= visible) and listEntries[i + scrollOffset] or nil
 		row.entry = e
 		if not e then
 			row:Hide()
 		else
 			row:Show()
 			if e.header then
-				row.text:SetPoint("LEFT", 6, 0)
-				row.text:SetText("|cffffd100" .. e.name .. "|r |cff808080(" .. e.n .. ")|r")
-				row.right:SetText(e.collapsed and "|cffffd100+|r" or "|cffffd100-|r")
+				row.text:SetPoint("LEFT", 22, 0)
+				row.text:SetText("|cffffd100" .. e.name .. "|r")
+				row.right:SetText("|cff9d9d9d" .. e.n .. "|r")
 				row.hl:SetShown(false)
 				row.headerBg:Show()
+				if e.icon then
+					row.toggle:SetTexture(e.icon)
+					row.toggle:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+				else
+					row.toggle:SetTexture(e.collapsed and "Interface\\Buttons\\UI-PlusButton-Up" or "Interface\\Buttons\\UI-MinusButton-Up")
+					row.toggle:SetTexCoord(0, 1, 0, 1)
+				end
+				row.toggle:Show()
 			else
 				local r = e.recipe
 				row.headerBg:Hide()
-				row.text:SetPoint("LEFT", 18, 0)
+				row.toggle:Hide()
+				row.text:SetPoint("LEFT", 24, 0)
 				local name = RecipeName(r)
 				if HasFlag(r, F_NEW) then name = name .. " |cff66ccff*|r" end
 				if learnedMode then
@@ -462,6 +539,8 @@ local function UpdateList()
 		end
 	end
 	Panel.empty:SetShown(#listEntries == 0)
+	Panel.info:SetText(L.results:format(Panel.matchCount or 0, Panel.totalCount or 0) .. "   |cffff8040■|r |cffffff00■|r |cff40bf40■|r |cff808080■|r")
+	if Panel.UpdateFilterButton then Panel.UpdateFilterButton() end
 end
 
 local function Refresh()
@@ -506,6 +585,9 @@ function UpdateDetail()
 		end
 	end
 	if HasFlag(r, F_NEW) then src = src .. "   |cff66ccff" .. L.newTag .. "|r" end
+	BuildIndexes()
+	local rp = PROF_BY_ID[RecipeProf[r]]
+	if rp and RecipeProf[r] ~= currentProf then src = "|cffffd100" .. ProfName(rp) .. "|r · " .. src end
 	d.source:SetText(src)
 
 	local desc = RecipeDesc(r)
@@ -576,7 +658,7 @@ local function CreateCheck(parent, label, key)
 	end
 	fs:SetFontObject("GameFontHighlightSmall")
 	fs:SetText(L[label])
-	cb.label, cb.labelKey = fs, label
+	cb.label, cb.labelKey, cb.key = fs, label, key
 	cb:SetScript("OnShow", function(self) self:SetChecked(DB[key]) end)
 	cb:SetScript("OnClick", function(self)
 		DB[key] = self:GetChecked() and true or false
@@ -655,20 +737,76 @@ local function CreatePanel()
 		search = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
 		search:SetAutoFocus(false)
 	end
-	search:SetSize(170, 20)
 	search:SetPoint("BOTTOMLEFT", left, "TOPLEFT", 64, 4)
+	search:SetPoint("RIGHT", left, "RIGHT", -92, 0)
+	search:SetHeight(20)
 	if search.Instructions then search.Instructions:SetText(L.search) end
 	search:HookScript("OnTextChanged", function() scrollOffset = 0; Refresh() end)
 	f.search = search
 
-	local cbNew = CreateCheck(f, "onlyNew", "onlyNew")
-	cbNew:SetPoint("LEFT", search, "RIGHT", 8, 0)
-	local cbCap = CreateCheck(f, "cap", "cap")
-	cbCap:SetPoint("LEFT", cbNew, "RIGHT", 90, 0)
-	local cbHide = CreateCheck(f, "hideLearned", "hideLearned")
-	cbHide:SetPoint("LEFT", cbCap, "RIGHT", 100, 0)
-	f.cbHide = cbHide
-	f.checks = { cbNew, cbCap, cbHide }
+	-- 필터 버튼 + 펼침 메뉴 (기본 전문 기술 창의 "필터" 버튼과 같은 자리)
+	local fbtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+	fbtn:SetSize(84, 22)
+	fbtn:SetPoint("LEFT", search, "RIGHT", 6, 0)
+	f.filterButton = fbtn
+
+	local menu = CreateFrame("Frame", nil, f, "BackdropTemplate")
+	menu:SetBackdrop({ bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", tile = true, tileSize = 16, edgeSize = 16, insets = { left = 4, right = 4, top = 4, bottom = 4 } })
+	menu:SetBackdropColor(0.05, 0.05, 0.08, 0.95)
+	menu:SetPoint("TOPLEFT", fbtn, "BOTTOMLEFT", 0, -2)
+	menu:SetFrameStrata("DIALOG")
+	menu:EnableMouse(true)
+	menu:Hide()
+	f.filterMenu = menu
+
+	local cbNew = CreateCheck(menu, "onlyNew", "onlyNew")
+	local cbCap = CreateCheck(menu, "cap", "cap")
+	local cbAll = CreateCheck(menu, "searchAll", "searchAll")
+	local cbHide = CreateCheck(menu, "hideLearned", "hideLearned")
+	local cbCan = CreateCheck(menu, "canLearnOnly", "canLearnOnly")
+	f.cbHide, f.cbCan, f.cbAll = cbHide, cbCan, cbAll
+	f.checks = { cbNew, cbCap, cbHide, cbCan, cbAll }
+
+	-- 지금 상황에 맞는 항목만 세로로 쌓기
+	function f.LayoutFilterMenu()
+		local items = { cbNew, cbCap }
+		if learnedMode then
+			items[#items + 1] = cbHide
+			items[#items + 1] = cbCan
+			cbAll:Hide()
+		else
+			items[#items + 1] = cbAll
+			cbHide:Hide(); cbCan:Hide()
+		end
+		local w = 120
+		for i, cb in ipairs(items) do
+			cb:ClearAllPoints()
+			cb:SetPoint("TOPLEFT", menu, "TOPLEFT", 8, -8 - (i - 1) * 24)
+			cb:Show()
+			cb:SetChecked(DB[cb.key])
+			local tw = cb.label:GetStringWidth() or 100
+			if tw + 40 > w then w = tw + 40 end
+		end
+		menu:SetSize(w, 16 + #items * 24)
+	end
+
+	function f.UpdateFilterButton()
+		local n = 0
+		if DB.onlyNew then n = n + 1 end
+		if DB.cap then n = n + 1 end
+		if learnedMode then
+			if DB.hideLearned then n = n + 1 end
+			if DB.canLearnOnly then n = n + 1 end
+		elseif DB.searchAll then
+			n = n + 1
+		end
+		fbtn:SetText(n > 0 and (L.filter .. " (" .. n .. ")") or L.filter)
+	end
+
+	fbtn:SetScript("OnClick", function()
+		if menu:IsShown() then menu:Hide() else f.LayoutFilterMenu(); menu:Show() end
+	end)
+	f:HookScript("OnHide", function() menu:Hide() end)
 
 	f.rows = {}
 	for i = 1, NUM_ROWS do
@@ -679,6 +817,10 @@ local function CreatePanel()
 		row.headerBg = row:CreateTexture(nil, "BACKGROUND")
 		row.headerBg:SetAllPoints()
 		row.headerBg:SetColorTexture(0.35, 0.25, 0.1, 0.45)
+		row.toggle = row:CreateTexture(nil, "ARTWORK")
+		row.toggle:SetSize(14, 14)
+		row.toggle:SetPoint("LEFT", 4, 0)
+		row.toggle:Hide()
 		row.hl = row:CreateTexture(nil, "BACKGROUND")
 		row.hl:SetAllPoints()
 		row.hl:SetColorTexture(1, 0.82, 0, 0.25)
@@ -695,6 +837,7 @@ local function CreatePanel()
 			local e = self.entry
 			if not e then return end
 			if e.header then
+				if e.icon then return end -- 전체 검색의 전문 기술 제목은 접지 않음
 				DB.collapsed[currentProf] = DB.collapsed[currentProf] or {}
 				local c = DB.collapsed[currentProf]
 				c[e.cat] = not c[e.cat] or nil
@@ -838,10 +981,16 @@ local function CreatePanel()
 			b:SetPoint("TOPLEFT", rl, "BOTTOMLEFT", col * (bw + 10), -6 - rowi * (twoCols and 40 or 32))
 		end
 		d.descBase = twoCols and 170 or 120
+		local lh = left:GetHeight() or 0
+		if lh > ROW_H * 6 then -- 아직 크기가 안 정해졌으면 건너뜀
+			Panel.visibleRows = math.max(5, math.min(NUM_ROWS, math.floor((lh - 12) / ROW_H)))
+			if f:IsShown() then UpdateList() end
+		end
 		if f:IsShown() and selectedRecipe then UpdateDetail() end
 	end
 	f:HookScript("OnSizeChanged", Relayout)
 	d:HookScript("OnSizeChanged", Relayout)
+	left:HookScript("OnSizeChanged", Relayout)
 	f.Relayout = Relayout
 	if f.SetClipsChildren then f:SetClipsChildren(true) end
 	if d.SetClipsChildren then d:SetClipsChildren(true) end
@@ -902,9 +1051,8 @@ function ns.OpenProfession(skillLine, isLearned, skill)
 	local p = PROF_BY_ID[skillLine]
 	AttachPanel()
 	SetPanelTitle(ProfName(p) .. " |cff808080(" .. (learnedMode and L.missingTitle or L.notLearned) .. ")|r")
-	Panel.cbHide:SetShown(learnedMode)
+	Panel.filterMenu:Hide()
 	SetPanelPortrait(p.icon)
-	Panel.info:SetText(L.count:format(#Data[skillLine].recipes) .. "   |cffff8040■|r |cffffff00■|r |cff40bf40■|r |cff808080■|r")
 	BuildList()
 	if not selectedRecipe then
 		for _, e in ipairs(listEntries) do
@@ -1252,18 +1400,76 @@ ev:SetScript("OnEvent", function(_, event, arg1)
 			end
 		end
 	elseif event == "TRADE_SKILL_LIST_UPDATE" then
-		if Panel and Panel:IsShown() and learnedMode then
-			local id, rank = CurrentTradeSkillLine()
-			if id == currentProf then
-				RefreshLearned()
-				curSkill = rank or curSkill
-				Refresh()
-			end
+		if Panel and Panel:IsShown() and learnedMode and not ns.listUpdatePending then
+			ns.listUpdatePending = true
+			C_Timer.After(0.5, function()
+				ns.listUpdatePending = nil
+				if not (Panel:IsShown() and learnedMode) then return end
+				local id, rank = CurrentTradeSkillLine()
+				if id == currentProf then
+					RefreshLearned()
+					curSkill = rank or curSkill
+					Refresh()
+				end
+			end)
 		end
 	elseif event == "SKILL_LINES_CHANGED" then
 		if ProfessionsFrame and ProfessionsFrame:IsShown() then C_Timer.After(0.1, LayoutTabs) end
 	end
 end)
+
+------------------------------------------------------------------------
+-- 아이템 툴팁: 이 아이템을 재료로 쓰는 제조법
+------------------------------------------------------------------------
+local function AddReagentLines(tooltip, itemID)
+	if not (DB and DB.reagentTooltip) or not itemID then return end
+	BuildIndexes()
+	local list = ReagentIndex[itemID]
+	if not list or #list == 0 then return end
+	local byProf, order = {}, {}
+	for _, r in ipairs(list) do
+		local pid = RecipeProf[r]
+		if not byProf[pid] then byProf[pid] = {}; order[#order + 1] = pid end
+		table.insert(byProf[pid], r)
+	end
+	table.sort(order, function(a, b) return #byProf[a] > #byProf[b] end)
+	tooltip:AddLine(" ")
+	tooltip:AddLine("|cff66ccff" .. L.usedIn .. "|r")
+	local shift = IsShiftKeyDown and IsShiftKeyDown()
+	for _, pid in ipairs(order) do
+		local p = PROF_BY_ID[pid]
+		local recipes = byProf[pid]
+		tooltip:AddLine(L.usedInLine:format(p and ProfName(p) or "?", #recipes), 1, 0.82, 0)
+		if shift then
+			SortRecipes(recipes)
+			for i = 1, math.min(8, #recipes) do
+				local r = recipes[i]
+				tooltip:AddDoubleLine("  " .. RecipeName(r), r[R_ORANGE], 1, 1, 1, 1, 0.5, 0.25)
+			end
+			if #recipes > 8 then tooltip:AddLine(L.andMore:format(#recipes - 8), 0.6, 0.6, 0.6) end
+		end
+	end
+	if not shift then tooltip:AddLine(L.shiftForList, 0.5, 0.5, 0.5) end
+end
+
+local function OnItemTooltip(tooltip, data)
+	-- 포에버 클라이언트는 값이 보호되어 비교·색인이 막힐 수 있어 pcall로 감쌈
+	pcall(function()
+		if tooltip ~= GameTooltip and tooltip ~= ItemRefTooltip then return end
+		local id = data and data.id
+		if not id and tooltip.GetItem then
+			local _, link = tooltip:GetItem()
+			id = link and tonumber(link:match("item:(%d+)"))
+		end
+		AddReagentLines(tooltip, tonumber(id))
+	end)
+end
+
+if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then
+	TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, OnItemTooltip)
+elseif GameTooltip and GameTooltip.HookScript then
+	pcall(GameTooltip.HookScript, GameTooltip, "OnTooltipSetItem", function(tt) OnItemTooltip(tt, nil) end)
+end
 
 ------------------------------------------------------------------------
 -- 언어 바꾼 뒤 글자 다시 쓰기
@@ -1343,7 +1549,7 @@ local function CreateSettings()
 		close:SetPoint("TOPRIGHT", -4, -4)
 	end
 	ns.settingsFrame = f
-	f:SetSize(330, 330)
+	f:SetSize(330, 370)
 	f:SetPoint("CENTER")
 	f:SetFrameStrata("DIALOG")
 	f:SetToplevel(true)
@@ -1407,6 +1613,14 @@ local function CreateSettings()
 	local plus = sizeBtn("+", 2)
 	plus:SetPoint("LEFT", minus, "RIGHT", 6, 0)
 
+	local tipCheck = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
+	tipCheck:SetSize(22, 22)
+	tipCheck:SetPoint("TOPLEFT", minus, "BOTTOMLEFT", -2, -14)
+	local tipText = tipCheck.Text or tipCheck.text or tipCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	if not (tipCheck.Text or tipCheck.text) then tipText:SetPoint("LEFT", tipCheck, "RIGHT", 0, 1) end
+	tipText:SetFontObject("GameFontHighlightSmall")
+	tipCheck:SetScript("OnClick", function(self) DB.reagentTooltip = self:GetChecked() and true or false end)
+
 	local donate = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
 	donate:SetSize(160, 26)
 	donate:SetPoint("BOTTOM", 0, 18)
@@ -1423,6 +1637,8 @@ local function CreateSettings()
 		posLabel:SetText(L.tabPosLabel)
 		sizeLabel:SetText(L.iconSizeLabel:format(DB.iconSize or 30))
 		donate:SetText(L.donate)
+		tipText:SetText(L.reagentTooltip)
+		tipCheck:SetChecked(DB.reagentTooltip)
 		lang.Refresh()
 		pos.Refresh()
 	end
@@ -1474,9 +1690,8 @@ SlashCmdList.ALLPROFESSIONRECIPES = function(msg)
 		ns.RefreshTexts()
 		if ns.settingsFrame then ns.settingsFrame:UpdateTexts() end
 		if Panel then
-			Panel.checks[1]:SetChecked(DB.onlyNew)
-			Panel.checks[2]:SetChecked(DB.cap)
-			Panel.cbHide:SetChecked(DB.hideLearned)
+			for _, cb in ipairs(Panel.checks) do cb:SetChecked(DB[cb.key]) end
+			Panel.filterMenu:Hide()
 			scrollOffset = 0
 			Refresh()
 		end

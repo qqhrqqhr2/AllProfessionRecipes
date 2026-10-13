@@ -54,6 +54,9 @@ function Frame:IsMouseOver() return true end
 function Frame:GetObjectType() return self._kind end
 function Frame:HighlightText() end
 function Frame:SetFocus() end
+function Frame:AddLine(t) print("  tip:", t) end
+function Frame:AddDoubleLine(a,b) print("  tip:", a, b) end
+function Frame:GetStringWidth() return 100 end
 function Frame:Click(btn) if self._scripts.OnClick then self._scripts.OnClick(self, btn or "LeftButton") end end
 function CreateFrame(kind, name, parent, template)
   if template == "QuestLogTabButtonTemplate" then
@@ -89,6 +92,9 @@ local profs = { [1]=182, [2]=393, [4]=356, [5]=185, [6]=129 }
 function GetProfessionInfo(i) return "n", 0, 1, 1, 0, 0, profs[i] end
 function IsPlayerSpell(id) return id == 3273 end
 SlashCmdList = {}
+Enum = { TooltipDataType = { Item = 0 } }
+TooltipDataProcessor = { AddTooltipPostCall = function(t, fn) _G.__tipHook = fn end }
+function IsShiftKeyDown() return _G.__shift end
 StaticPopupDialogs = {}
 function StaticPopup_Show(name, text) local d = StaticPopupDialogs[name]; local popup = new("Frame"); popup.editBox = new("EditBox"); d.OnShow(popup); print("popup", text, popup.editBox._text) end
 Settings = { RegisterCanvasLayoutCategory = function(c, n) return {n=n} end, RegisterAddOnCategory = function(c) print("settings registered", c.n) end }

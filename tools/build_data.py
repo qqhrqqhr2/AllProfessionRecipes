@@ -67,6 +67,9 @@ for slug,skill in profs:
         # Explicit wowf.io trainer sources take priority over older skill-range data.
         if src_lines(x, 'ko') == ['교관'] or src_lines(e, 'en') == ['Trainer']:
             trainer = True
+        # 판매·드랍·퀘스트처럼 교관이 아닌 배우는 곳이 있으면 교관 표시를 끈다.
+        elif any(not l.startswith(('교관', '기본 제조법')) for l in src_lines(x, 'ko')):
+            trainer = False
         flags=(1 if x.get('new') else 0)+(2 if trainer else 0)
         reag='{'+','.join('{%d,%d}'%(a,b) for a,b in x['r'])+'}'
         sk='\n'.join(src_lines(x,'ko')); se='\n'.join(src_lines(e,'en')) if e else sk
