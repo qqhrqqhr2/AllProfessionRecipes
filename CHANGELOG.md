@@ -1,3 +1,19 @@
+## v1.5.0
+
+- Vendor recipe prices updated to Merchant's Favor (from Soft Patch of Fur)
+- Where to learn shows only your faction's vendor
+- Faction-only recipes are marked (Alliance only / Horde only): 113 Alliance, 22 Horde
+- New filter "Hide other faction's recipes" (on by default), also used for the reagent counts in item tooltips
+- Recipe data refreshed for the current Forever build
+
+---
+
+- 판매 제조법 가격을 "상인의 호의"로 갱신 (이전: 부드러운 모피 조각)
+- 배우는 곳에 내 진영 판매 NPC만 표시
+- 진영 전용 제조법 표시 (얼라이언스 전용 113개, 호드 전용 22개)
+- 새 필터 "다른 진영 제조법 숨기기" (기본 켜짐), 아이템 툴팁의 재료 개수에도 적용
+- 최신 포에버 제조법 데이터로 갱신
+
 ## v1.4.0
 
 - Filter button next to the search box, like the default profession window (Forever new only, Skill 225 or less, and more)
