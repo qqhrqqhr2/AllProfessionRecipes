@@ -33,6 +33,11 @@ def src_lines(x, lang="ko"):
             seg=lines[i][j:k]
             if ',' in seg.split('(')[-1]: continue  # 이미 좌표 있음
             lines[i]=lines[i][:k]+' %g, %g'%(at['x'],at['y'])+lines[i][k:]
+    # 한 진영 NPC만 나오는 줄은 앞에 @A / @H 를 붙여 애드온이 내 진영 줄만 보여주게 한다.
+    for i in range(len(lines)):
+        sides={n.get('side') for n in npcs if n.get('name') and (n['name']+' (') in lines[i]}
+        if sides=={'alliance'}: lines[i]='@A '+lines[i]
+        elif sides=={'horde'}: lines[i]='@H '+lines[i]
     return lines
 def lua_str(s):
     return '"'+s.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n').replace('\r','')+'"'
@@ -70,7 +75,8 @@ for slug,skill in profs:
         # 판매·드랍·퀘스트처럼 교관이 아닌 배우는 곳이 있으면 교관 표시를 끈다.
         elif any(not l.startswith(('교관', '기본 제조법')) for l in src_lines(x, 'ko')):
             trainer = False
-        flags=(1 if x.get('new') else 0)+(2 if trainer else 0)
+        # 4: 얼라이언스 전용, 8: 호드 전용
+        flags=(1 if x.get('new') else 0)+(2 if trainer else 0)+{'alliance':4,'horde':8}.get(x.get('fx'),0)
         reag='{'+','.join('{%d,%d}'%(a,b) for a,b in x['r'])+'}'
         sk='\n'.join(src_lines(x,'ko')); se='\n'.join(src_lines(e,'en')) if e else sk
         rows.append('{%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,%s,%s,%s,%s,%s,%s,%s}'%(

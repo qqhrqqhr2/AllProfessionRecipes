@@ -61,6 +61,9 @@ local L_KO = {
 	usedInLine = "%s: %d개",
 	shiftForList = "Shift: 제조법 목록 보기",
 	andMore = "  외 %d개",
+	hideOtherFaction = "다른 진영 제조법 숨기기",
+	allianceOnly = "얼라이언스 전용",
+	hordeOnly = "호드 전용",
 }
 local L_EN = {
 	settings = "Settings",
@@ -113,6 +116,9 @@ local L_EN = {
 	usedInLine = "%s: %d",
 	shiftForList = "Shift: list recipes",
 	andMore = "  and %d more",
+	hideOtherFaction = "Hide other faction's recipes",
+	allianceOnly = "Alliance only",
+	hordeOnly = "Horde only",
 }
 local L = IS_KO and L_KO or L_EN
 local DONATE_URL = "https://buymeacoffee.com/qqhrqqhr2"
@@ -142,7 +148,7 @@ end
 -- 레시피 배열 인덱스
 local R_SPELL, R_ITEM, R_CAT, R_ORANGE, R_YELLOW, R_GREEN, R_GREY, R_FLAGS, R_QTY, R_ICON, R_NAME_KO, R_NAME_EN, R_REAG, R_DESC_KO, R_DESC_EN, R_SRC_KO, R_SRC_EN =
 	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17
-local F_NEW, F_TRAINER = 1, 2
+local F_NEW, F_TRAINER, F_ALLIANCE, F_HORDE = 1, 2, 4, 8
 
 local function HasFlag(r, f) return bit.band(r[R_FLAGS], f) ~= 0 end
 
@@ -164,12 +170,46 @@ local function BuildIndexes()
 end
 local function RecipeName(r) return IS_KO and r[R_NAME_KO] or r[R_NAME_EN] end
 local function RecipeDesc(r) return IS_KO and r[R_DESC_KO] or r[R_DESC_EN] end
-local function RecipeSrc(r) return (IS_KO and r[R_SRC_KO] or r[R_SRC_EN]) or "" end
+-- 내 진영 ("Alliance" / "Horde"), 모르면 nil
+local playerFaction
+local function PlayerFaction()
+	if playerFaction then return playerFaction end
+	local ok, f = pcall(UnitFactionGroup, "player")
+	if ok and (f == "Alliance" or f == "Horde") then playerFaction = f end
+	return playerFaction
+end
+
+local function IsOtherFaction(r)
+	local f = PlayerFaction()
+	if not f then return false end
+	if f == "Alliance" then return bit.band(r[R_FLAGS], F_HORDE) ~= 0 end
+	return bit.band(r[R_FLAGS], F_ALLIANCE) ~= 0
+end
+
+-- 배우는 곳: "@A "/"@H "가 붙은 줄은 그 진영 전용 NPC라 내 진영 줄만 보여줌
+local function RecipeSrc(r)
+	local raw = (IS_KO and r[R_SRC_KO] or r[R_SRC_EN]) or ""
+	if raw == "" or not raw:find("@", 1, true) then return raw end
+	local mine = PlayerFaction()
+	local out = {}
+	for line in (raw .. "\n"):gmatch("(.-)\n") do
+		local tag, rest = line:match("^@([AH]) (.*)$")
+		if not tag then
+			out[#out + 1] = line
+		elseif not mine or (tag == "A" and mine == "Alliance") or (tag == "H" and mine == "Horde") then
+			out[#out + 1] = rest
+		end
+	end
+	if #out == 0 then -- 내 진영 줄이 없으면 전부 보여줌
+		for line in (raw .. "\n"):gmatch("(.-)\n") do out[#out + 1] = (line:gsub("^@[AH] ", "")) end
+	end
+	return table.concat(out, "\n")
+end
 
 ------------------------------------------------------------------------
 -- 저장 변수
 ------------------------------------------------------------------------
-local DEFAULTS = { collapsed = {}, onlyNew = false, cap = false, standalonePos = nil, tabPos = "left", hideLearned = true, lang = "auto", canLearnOnly = false, searchAll = false, reagentTooltip = true }
+local DEFAULTS = { collapsed = {}, onlyNew = false, cap = false, standalonePos = nil, tabPos = "left", hideLearned = true, lang = "auto", canLearnOnly = false, searchAll = false, reagentTooltip = true, hideOtherFaction = true }
 local DB
 
 local function ApplyLanguage()
@@ -404,6 +444,7 @@ end
 local function RecipeMatches(r, query)
 	if DB.onlyNew and not HasFlag(r, F_NEW) then return false end
 	if DB.cap and r[R_ORANGE] > 225 then return false end
+	if DB.hideOtherFaction and IsOtherFaction(r) then return false end
 	if learnedMode and DB.hideLearned and IsLearned(r) then return false end
 	if learnedMode and DB.canLearnOnly and (IsLearned(r) or r[R_ORANGE] > curSkill) then return false end
 	if query and query ~= "" then
@@ -585,6 +626,8 @@ function UpdateDetail()
 		end
 	end
 	if HasFlag(r, F_NEW) then src = src .. "   |cff66ccff" .. L.newTag .. "|r" end
+	if HasFlag(r, F_ALLIANCE) then src = src .. "   |cff4a8cff" .. L.allianceOnly .. "|r"
+	elseif HasFlag(r, F_HORDE) then src = src .. "   |cffe04040" .. L.hordeOnly .. "|r" end
 	BuildIndexes()
 	local rp = PROF_BY_ID[RecipeProf[r]]
 	if rp and RecipeProf[r] ~= currentProf then src = "|cffffd100" .. ProfName(rp) .. "|r · " .. src end
@@ -764,12 +807,13 @@ local function CreatePanel()
 	local cbAll = CreateCheck(menu, "searchAll", "searchAll")
 	local cbHide = CreateCheck(menu, "hideLearned", "hideLearned")
 	local cbCan = CreateCheck(menu, "canLearnOnly", "canLearnOnly")
-	f.cbHide, f.cbCan, f.cbAll = cbHide, cbCan, cbAll
-	f.checks = { cbNew, cbCap, cbHide, cbCan, cbAll }
+	local cbFaction = CreateCheck(menu, "hideOtherFaction", "hideOtherFaction")
+	f.cbHide, f.cbCan, f.cbAll, f.cbFaction = cbHide, cbCan, cbAll, cbFaction
+	f.checks = { cbNew, cbCap, cbHide, cbCan, cbAll, cbFaction }
 
 	-- 지금 상황에 맞는 항목만 세로로 쌓기
 	function f.LayoutFilterMenu()
-		local items = { cbNew, cbCap }
+		local items = { cbNew, cbCap, cbFaction }
 		if learnedMode then
 			items[#items + 1] = cbHide
 			items[#items + 1] = cbCan
@@ -794,6 +838,7 @@ local function CreatePanel()
 		local n = 0
 		if DB.onlyNew then n = n + 1 end
 		if DB.cap then n = n + 1 end
+		if DB.hideOtherFaction then n = n + 1 end
 		if learnedMode then
 			if DB.hideLearned then n = n + 1 end
 			if DB.canLearnOnly then n = n + 1 end
@@ -1429,9 +1474,13 @@ local function AddReagentLines(tooltip, itemID)
 	local byProf, order = {}, {}
 	for _, r in ipairs(list) do
 		local pid = RecipeProf[r]
-		if not byProf[pid] then byProf[pid] = {}; order[#order + 1] = pid end
-		table.insert(byProf[pid], r)
+		if DB.hideOtherFaction and IsOtherFaction(r) then pid = nil end
+		if pid then
+			if not byProf[pid] then byProf[pid] = {}; order[#order + 1] = pid end
+			table.insert(byProf[pid], r)
+		end
 	end
+	if #order == 0 then return end
 	table.sort(order, function(a, b) return #byProf[a] > #byProf[b] end)
 	tooltip:AddLine(" ")
 	tooltip:AddLine("|cff66ccff" .. L.usedIn .. "|r")

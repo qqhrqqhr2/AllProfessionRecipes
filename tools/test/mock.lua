@@ -92,6 +92,7 @@ local profs = { [1]=182, [2]=393, [4]=356, [5]=185, [6]=129 }
 function GetProfessionInfo(i) return "n", 0, 1, 1, 0, 0, profs[i] end
 function IsPlayerSpell(id) return id == 3273 end
 SlashCmdList = {}
+function UnitFactionGroup() return _G.__faction or "Horde" end
 Enum = { TooltipDataType = { Item = 0 } }
 TooltipDataProcessor = { AddTooltipPostCall = function(t, fn) _G.__tipHook = fn end }
 function IsShiftKeyDown() return _G.__shift end
