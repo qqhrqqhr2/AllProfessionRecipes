@@ -1,3 +1,17 @@
+## v1.5.1
+
+- Refresh recipe data from wowf.io: update 74 recipes and Korean/English item names
+- Update required skill levels for 8 recipes, including Guardian Cloak and Raging Raptor Ribs
+- Update enchantment descriptions and recipe categories
+- Remove the alchemy recipe no longer listed on wowf.io (2,232 recipes total)
+
+---
+
+- wowf.io 최신 데이터 반영: 제조법 74개 및 한·영 아이템 명칭 갱신
+- 수호 망토·성난 랩터 갈비 등 제조법 8개의 필요 숙련도 갱신
+- 마법부여 설명과 제조법 분류 갱신
+- wowf.io 목록에서 빠진 연금술 제조법 1개 제거 (총 2,232개)
+
 ## v1.5.0
 
 - Vendor recipe prices updated to Merchant's Favor (from Soft Patch of Fur)
